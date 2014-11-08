@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="pagsortex" basedir="." default="compile">
+
+  <property environment="env"/>
+  <property name="src.dir" value="src\main\java"/>
+  <property name="build.dir" value="build"/>
+
+  <property name="sp.src.dir" value="src\main\storedproc4derby"/>
+  <property name="sp.build.dir" value="spbuild"/>
+  <property name="sp.dist.dir" value="spdist"/>
+  <property name="sp-jar.file" value="${ant.project.name}procs.jar"/>
+  <property name="sp.test.src.dir" value="src\test"/>
+  <property name="sp.test.build.dir" value="build\test"/>
+
+  <property name="derby.db.name" value="pagesortex"/>
+  <property name="derby.db.dir" value="/home/sree/derbydbs"/>
+  <property name="derby.db.driver" value="org.apache.derby.jdbc.EmbeddedDriver"/>
+  <property name="derby.db.url" value="jdbc:derby:${derby.db.dir}/${derby.db.name};create=true;"/>
+  <property name="derby.db.user" value="user12"/>
+  <property name="derby.db.pass" value="34klq*"/>
+  <property name="sql-file" value="resources/sqlex.sql"/>
+
+  <property name="temp.dir" value="temp"/>
+  <property name="docs.dir" value="docs"/>
+  <property name="dist.dir" value="dist"/>
+  <property name="web.dir" value="src\main\webapp"/>
+  <property name="web-xml" value="resources\web.xml"/>
+  <property name="libs.dir" value="libs"/>    
+  <property name="jar.file" value="${ant.project.name}.jar"/>
+  <property name="war.file" value="${ant.project.name}.war"/>
+
+  <property name="host" value="127.0.0.1"/>
+  <property name="port" value="8085"/>
+  <property name="user" value="system"/>
+  <property name="pass" value="manager"/>
+  <property name="server.dir" value="\opt\tomee"/>
+  <property name="lib.dir" value="${server.dir}\lib"/>
+  
+  <path id="project.classpath">
+    <fileset file="${lib.dir}/servlet-api.jar"/>
+  </path>
+
+  <!--taskdef name="deploy" classname="org.apache.catalina.ant.DeployTask"/>
+  <taskdef name="undeploy" classname="org.apache.catalina.ant.UndeployTask"/-->
+
+  <target name="clean" description="Cleans the build and distribution directories">
+    <echo>Cleaning the project build and dist directories...</echo>
+    <delete dir="${docs.dir}"/>
+    <delete dir="${dist.dir}"/>
+    <delete dir="${build.dir}"/>
+  </target>
+
+  <target name="init" description="Creates the build and distribution directories">
+    <echo>Initialising the project directories...</echo>
+    <mkdir dir="${docs.dir}"/>
+    <mkdir dir="${build.dir}"/>
+    <mkdir dir="${dist.dir}"/>
+  </target>
+
+  <target name="compile" description="Compiles the source code into the build directory" depends="clean, init">
+    <echo>Compiling the java source code...</echo>
+    <javac srcdir="${src.dir}"
+	  destdir="${build.dir}"
+	  deprecation="on"
+	  debug="on"
+	  includeantruntime="true">
+	  <classpath refid="project.classpath"/>
+	</javac>
+  </target>
+
+  <target name="compileSP" description="Compiles the source code for Stored Procedure">
+    <echo>Cleaning previous stored procedure build directories and compiled files...</echo>
+	<delete dir="${sp.build.dir}"/>
+	<echo>Creating procedure build directory..</echo>
+	<mkdir dir="${sp.build.dir}"/>
+    <echo>Compiling source code for Stored Procedure</echo>
+	<javac srcdir="${sp.src.dir}" 
+	    destdir="${sp.build.dir}" 
+		deprecation="on" 
+		debug="on"
+		includeantruntime="true">
+	</javac>
+  </target>
+
+  <target name="buildSPJar" description="Builds the distributable jar file of the sp code"> <!--depends="compileSP"-->
+    <echo>Cleaning previous stored procedure dist directories and files...</echo>
+	<delete dir="${sp.dist.dir}"/>
+	<echo>Creating stored procedure dist directory...</echo>
+	<mkdir dir="${sp.dist.dir}"/>
+    <echo>Building distributable jar file of the compiled source code for stored procedure..</echo>
+	<jar file="${sp.dist.dir}/${sp-jar.file}" basedir="${sp.build.dir}" compress="false"/>
+  </target>
+
+  <target name="buildJar" description="Builds the distributable jar fle of the source code" depends="compile">
+    <echo>Building distributable jar file of the compiled source code...</echo>
+    <mkdir dir="${temp.dir}"/>
+    <mkdir dir="${temp.dir}\WEB-INF"/>
+    <mkdir dir="${temp.dir}\WEB-INF\lib"/>	
+    <jar file="${temp.dir}\WEB-INF\lib\${jar.file}" basedir="${build.dir}" compress="false"/>
+  </target>
+  
+  <target name="runSPTest" description="Runs the Stored Procedure Test class">
+	 <delete dir="${sp.test.build.dir}"/>
+	 <mkdir dir="${sp.test.build.dir}"/>
+	 <javac srcdir="${sp.test.src.dir}" destdir="${sp.test.build.dir}" includeantruntime="true"/>
+	 <java dir="${sp.test.build.dir}" 
+	      classname="sptest.StudentStoredProcTest"
+	      failonerror="true"
+	      fork="true">
+		 <sysproperty key="DEBUG" value="true"/>		 
+	 </java>
+  </target>
+  
+  <target name="genDocs" description="Generates the documentation of the source code from the same." depends="compile">
+	<echo>Generating distributable documentation of the source code from the same.</echo>
+	<javadoc packagenames="net.*"
+	  sourcepath="${src.dir}"
+	  destdir="${docs.dir}"
+	  access="public"
+	  windowtitle="My Pagination and Sorting Example API Documentation"
+	  verbose="true"
+	  author="true"
+	  version="true">
+	  <fileset dir="${src.dir}">
+	    <include name="**"/>
+	  </fileset>
+	</javadoc>
+  </target>
+
+  <target name="buildWar" description="Builds the distributable web-archive file of the project" depends="buildJar">
+    <echo>Building distributable and deploy-ready web archive file...</echo>
+    <!--copy todir="${temp.dir}\WEB-INF" file="${web-xml}"></copy>
+    <copy todir="${temp.dir}\WEB-INF">
+      <fileset dir="resources" includes="tlds/**"/>
+    </copy>
+    <copy todir="${temp.dir}\WEB-INF\lib">
+		<fileset dir="${libs.dir}" includes="*.jar"/>
+    </copy--> 
+    <echo>Including all the required web documents</echo>
+    <copy todir="${temp.dir}">
+	 <fileset dir="${web.dir}"/>
+    </copy>
+    <echo>Creating the .war file..</echo>
+    <war warfile="${dist.dir}\${war.file}"
+	   basedir="${temp.dir}"
+       compress="false"
+	   webxml="${web-xml}"/>
+    <echo>Cleaning up the unnecessary temporary files and directories..</echo>
+    <delete dir="${temp.dir}"/>
+  </target>
+
+  <target name="setupBackend" description="Checks and creates the database (derby) if not exists and populates it with the values.">
+     <sql driver="${derby.db.driver}"
+         url="${derby.db.url}"
+         userid="${derby.db.user}"
+         password="${derby.db.pass}"
+         src="${sql-file}"
+         print="yes"
+         output="dbop.txt"
+         onerror="continue"
+         autocommit="true">
+         <classpath>
+              <pathelement location="${env.JAVA_HOME}\db\lib\derbyclient.jar"/>
+         </classpath>
+    </sql>
+  </target>
+
+  <!--target name="deployWebApp" description="Deploys the distributable war file as a web application into the server" depends="buildWar,setupBackend">
+    <echo>Deploying the war file as a web application into the server...</echo>
+    <deploy url="http://${host}:{port}/manager" 
+         username="${user}"
+         password="${pass}"
+         path="/${ant.project.name}"
+         war="file://${dist.dir}/${war.file}"/>
+  </target>
+  
+  <target name="undeployWebApp" description="Undeploys the web application from the server">
+    <echo>Undeploying the web application from the server...</echo>
+    <undeploy url="http://${host}:${port}/${ant.project.name}"
+        username="${user}"
+        password="${pass}"
+        path="/${ant.project.name}"
+        failonerror="no"/>
+  </target>
+  
+  <target name="redeployWebApp" description="Redeploys the web application after the changes" depends="undeployWebApp, deployWebApp"/-->  
+
+</project>
